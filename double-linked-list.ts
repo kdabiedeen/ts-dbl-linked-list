@@ -1,82 +1,91 @@
-class DLLNode<T> {
-    value: T;
-    next: DLLNode<T> | null = null;
-    prev: DLLNode<T> | null = null;
+class DLLNode<K, V> {
+    key: K;
+    value: V;
+    next: DLLNode<K, V> | null = null;
+    prev: DLLNode<K, V> | null = null;
 
-    constructor(value: T) {
+    constructor(key: K, value: V) {
+        this.key = key;
         this.value = value;
     }
 }
 
-class DoubleLinkedList<T> {
-    head: DLLNode<T> | null = null;
-    tail: DLLNode<T> | null = null;
-    private nodeMap: Map<T, DLLNode<T>> = new Map();
+export class LRUCache<K, V> { 
+    private capactiy: number;
+    private map: Map<K, DLLNode<K,V>> = new Map();
+    private head: DLLNode<K, V> | null = null; // most recent
+    private tail: DLLNode<K, V> | null = null;
 
-    append(value: T): void {
-        const newNode = new DLLNode(value)
-        this.nodeMap.set(value, newNode)
+    constructor(capacity: number) {
+        this.capactiy = capacity;
+    }
 
-        if (!this.tail) {
-            this.head = this.tail = newNode;
-        } else {
-            this.tail.next = newNode;
-            newNode.prev = this.tail;
-            this.tail = newNode;
+    get(key: K): V | undefined {
+        const node = this.map.get(key);
+        if (!node) return undefined;
+        this.moveToFront(node);
+        return node.value;
+    }
+
+    put(key: K, value: V): void {
+        let node = this.map.get(key)
+
+        if (node) {
+            node.value = value;
+            this.moveToFront(node);
+        } else { 
+            node = new DLLNode(key, value);
+            this.map.set(key, node);
+            this.insertAtFront(node);
+
+            if (this.map.size > this.capactiy) {
+                this.evictLeastUsed();
+            }
         }
     }
 
-    prepend(value: T): void {
-        const newNode = new DLLNode(value);
-        this.nodeMap.set(value, newNode);
+    private insertAtFront(node: DLLNode<K, V>): void {
+        node.next = this.head;
+        node.prev = null;
 
-        if (!this.head) {
-            this.head = this.tail = newNode
-        } else {
-            newNode.next = this.head
-            this.head.prev = newNode;
-            this.head = newNode;
-        }
+        if (this.head) this.head.prev = node;
+        this.head = node;
+
+        if (!this.tail) this.tail = node;
     }
 
-    delete(value: T): void {
-        const node = this.nodeMap.get(value);
-        if (!node) return;
 
+    private moveToFront(node: DLLNode<K, V>): void {
+        if (node == this.head) return;
+
+        this.removeNode(node);
+        this.insertAtFront(node);
+    }
+
+    private removeNode(node: DLLNode<K, V>): void {
+        // if head, just move head of the list otherwise...
         if (node.prev) node.prev.next = node.next;
         else this.head = node.next;
-    
+
+        // if tail, set tail to the prev node otherwise...
         if (node.next) node.next.prev = node.prev;
         else this.tail = node.prev;
-    
-        this.nodeMap.delete(value);
-
-        // Note: PREOPTIMIZED without a Map
-        // let current = this.head;
-
-        // while (current) {
-        //     if (current.value === value) {
-        //         if (current.prev) current.prev.next = current.next;
-        //         else this.head = current.next;
-
-        //         if (current.next) current.next.prev = current.prev;
-        //         else this.tail = current.prev;
-        //     }
-        //     current = current.next;
-        // }
     }
 
-    find(value: T): DLLNode<T> | null {
-        return this.nodeMap.get(value) || null;
+    private evictLeastUsed(): void {
+        if (!this.tail) return;
 
-        // Note: PREOPTIMIZED without a Map
-        // let current = this.head;
+        this.map.delete(this.tail.key);
+        this.removeNode(this.tail);
+    }
 
-        // while (current) {
-        //     if (current.value === value) return current;
-        //     current = current.next;
-        // }
-
-        // return null;
+    keys(): K[] {
+        const keys: K[] = [];
+        let current = this.head;
+        while (current) {
+            keys.push(current.key);
+            current = current.next;
+        }
+        return keys;
     }
 }
